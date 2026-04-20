@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Dash</title>
+  <style>
+    :root {
+      --bg-top: #080c2a;
+      --bg-bottom: #00020b;
+      --neon-cyan: #38f3ff;
+      --neon-pink: #ff3bf8;
+      --neon-yellow: #ffed5a;
+      --neon-green: #67ff7b;
+      --text: #e7f5ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(circle at 20% 20%, #17235f 0%, #060a24 35%, #02030b 100%);
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    .wrap {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+    }
+
+    .frame {
+      position: relative;
+      width: min(1200px, 100vw - 16px);
+      height: min(680px, 100vh - 16px);
+      border-radius: 12px;
+      border: 2px solid rgba(56, 243, 255, 0.45);
+      box-shadow: 0 0 20px rgba(56, 243, 255, 0.4), inset 0 0 30px rgba(255, 59, 248, 0.15);
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    .hud {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-shadow: 0 0 12px rgba(56, 243, 255, 0.65);
+      font-size: clamp(12px, 1.8vw, 18px);
+    }
+
+    .chip {
+      padding: 9px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(20, 29, 75, 0.22));
+      box-shadow: inset 0 0 20px rgba(56, 243, 255, 0.09), 0 0 20px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(3px);
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .bar {
+      width: min(560px, 56vw);
+      height: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink), var(--neon-yellow));
+      box-shadow: 0 0 12px rgba(255, 59, 248, 0.6);
+      transition: width 0.08s linear;
+    }
+
+    .centerText {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      pointer-events: none;
+      padding: 12px;
+    }
+
+    .panel {
+      max-width: 820px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      background: rgba(4, 10, 35, 0.48);
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.35), inset 0 0 30px rgba(56, 243, 255, 0.1);
+      padding: clamp(12px, 2vw, 18px) clamp(14px, 2.4vw, 24px);
+    }
+
+    .title {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 5vw, 58px);
+      color: #fff;
+      letter-spacing: 1px;
+      text-shadow: 0 0 16px rgba(56, 243, 255, 0.9), 0 0 30px rgba(255, 59, 248, 0.5);
+    }
+
+    .sub {
+      margin: 0;
+      font-size: clamp(12px, 1.8vw, 19px);
+      color: #e2edff;
+      line-height: 1.4;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+    }
+
+    .hidden {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: 0.25s ease;
+    }
+
+    .bottom {
+      align-self: center;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .kbd {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.27);
+      background: rgba(5, 10, 34, 0.58);
+      font-size: clamp(11px, 1.4vw, 14px);
+      color: #dbe9ff;
+      box-shadow: inset 0 0 14px rgba(255, 59, 248, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="frame">
+      <canvas id="game"></canvas>
+      <div class="hud">
+        <div class="top">
+          <div id="statusText" class="chip">READY</div>
+          <div class="bar"><div class="fill" id="progressFill"></div></div>
+          <div id="percentText" class="chip">0%</div>
+        </div>
+        <div class="bottom">
+          <div class="kbd">Jump: Space / W / Up / Click</div>
+          <div class="kbd">Restart: R</div>
+          <div class="kbd" id="dangerText">Only spikes are lethal</div>
+        </div>
+      </div>
+      <div class="centerText" id="centerText">
+        <div class="panel">
+          <h1 class="title">NEON DASH</h1>
+          <p class="sub">
+            Geometry Dash-inspired single-file challenge.<br />
+            Press <b>Space</b>, <b>W</b>, <b>Up</b>, or <b>Click/Tap</b> to jump.<br />
+            Avoid spikes and ride the neon blocks. Reach 100% to win.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const centerText = document.getElementById("centerText");
+      const statusText = document.getElementById("statusText");
+      const percentText = document.getElementById("percentText");
+      const progressFill = document.getElementById("progressFill");
+      const dangerText = document.getElementById("dangerText");
+
+      const state = {
+        running: false,
+        dead: false,
+        won: false,
+        progress: 0
+      };
+
+      const world = {
+        speed: 410,
+        gravity: 2050,
+        jumpVelocity: 820,
+        baseY: 0,
+        cameraX: 0,
+        levelLength: 16000
+      };
+
+      const player = {
+        x: 210,
+        y: 0,
+        w: 44,
+        h: 44,
+        vy: 0,
+        grounded: true,
+        rotation: 0,
+        trail: []
+      };
+
+      const level = [];
+      const deco = [];
+      let sparks = [];
+      let pulseT = 0;
+      let previous = performance.now();
+      let accumulator = 0;
+      const fixedStep = 1 / 120;
+
+      function fitCanvas() {
+        const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        world.baseY = rect.height * 0.78;
+        if (!state.running) {
+          player.y = world.baseY - player.h;
+        }
+      }
+
+      function random(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function buildLevel() {
+        level.length = 0;
+        deco.length = 0;
+        const sectionCount = 70;
+        let cursor = 620;
+
+        for (let i = 0; i < sectionCount; i++) {
+          const pattern = i % 10;
+
+          if (pattern === 0 || pattern === 6) {
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 110;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 140;
+          } else if (pattern === 1 || pattern === 8) {
+            level.push({ type: "block", x: cursor, y: world.baseY - 56, w: 60, h: 56 });
+            cursor += 115;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 120;
+          } else if (pattern === 2) {
+            level.push({ type: "block", x: cursor, y: world.baseY - 52, w: 62, h: 52 });
+            cursor += 90;
+            level.push({ type: "block", x: cursor, y: world.baseY - 104, w: 62, h: 52 });
+            cursor += 120;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 130;
+          } else if (pattern === 3 || pattern === 9) {
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 95;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 95;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 150;
+          } else if (pattern === 4) {
+            level.push({ type: "block", x: cursor, y: world.baseY - 58, w: 66, h: 58 });
+            cursor += 95;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 95;
+            level.push({ type: "block", x: cursor, y: world.baseY - 118, w: 66, h: 60 });
+            cursor += 145;
+          } else if (pattern === 5) {
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 140;
+            level.push({ type: "block", x: cursor, y: world.baseY - 52, w: 60, h: 52 });
+            cursor += 110;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 120;
+          } else if (pattern === 7) {
+            level.push({ type: "block", x: cursor, y: world.baseY - 56, w: 60, h: 56 });
+            cursor += 90;
+            level.push({ type: "block", x: cursor, y: world.baseY - 112, w: 60, h: 56 });
+            cursor += 90;
+            level.push({ type: "spike", x: cursor, y: world.baseY, w: 50, h: 46 });
+            cursor += 130;
+          }
+
+          deco.push({
+            x: cursor + random(30, 220),
+            y: random(70, world.baseY - 140),
+            r: random(18, 52),
+            c: i % 2 === 0 ? "rgba(56,243,255,0.12)" : "rgba(255,59,248,0.11)"
+          });
+        }
+
+        world.levelLength = cursor + 900;
+      }
+
+      function resetGame() {
+        world.cameraX = 0;
+        player.y = world.baseY - player.h;
+        player.vy = 0;
+        player.grounded = true;
+        player.rotation = 0;
+        player.trail.length = 0;
+        sparks = [];
+        state.running = false;
+        state.dead = false;
+        state.won = false;
+        state.progress = 0;
+        updateHud();
+        statusText.textContent = "READY";
+        centerText.classList.remove("hidden");
+        centerText.querySelector(".sub").innerHTML =
+          "Geometry Dash-inspired single-file challenge.<br />" +
+          "Press <b>Space</b>, <b>W</b>, <b>Up</b>, or <b>Click/Tap</b> to jump.<br />" +
+          "Avoid spikes and ride neon blocks. Reach 100% to win.";
+        dangerText.textContent = "Only spikes are lethal";
+      }
+
+      function startGame() {
+        if (!state.running && !state.dead && !state.won) {
+          state.running = true;
+          centerText.classList.add("hidden");
+          statusText.textContent = "RUNNING";
+        }
+      }
+
+      function jump() {
+        if (state.dead || state.won) return;
+        startGame();
+        if (player.grounded) {
+          player.vy = -world.jumpVelocity;
+          player.grounded = false;
+          emitSparks(player.x + player.w * 0.5, player.y + player.h, 14, "jump");
+        }
+      }
+
+      function emitSparks(x, y, count, mode) {
+        for (let i = 0; i < count; i++) {
+          const speed = mode === "death" ? random(90, 360) : random(40, 180);
+          const angle = mode === "death" ? random(0, Math.PI * 2) : random(Math.PI * 0.8, Math.PI * 1.2);
+          sparks.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: random(0.35, 0.9),
+            maxLife: 1,
+            size: random(2, 5),
+            color: Math.random() < 0.5 ? "#38f3ff" : "#ff3bf8"
+          });
+        }
+      }
+
+      function die() {
+        state.dead = true;
+        state.running = false;
+        statusText.textContent = "CRASHED";
+        centerText.classList.remove("hidden");
+        centerText.querySelector(".sub").innerHTML =
+          "<b>You crashed!</b><br />Press <b>R</b> to restart or <b>Click/Tap</b> to retry.";
+        dangerText.textContent = "Spike impact detected";
+        emitSparks(player.x + player.w * 0.5, player.y + player.h * 0.5, 45, "death");
+      }
+
+      function win() {
+        state.won = true;
+        state.running = false;
+        state.progress = 1;
+        updateHud();
+        statusText.textContent = "CLEARED";
+        centerText.classList.remove("hidden");
+        centerText.querySelector(".sub").innerHTML =
+          "<b>Level Complete!</b><br />Neon Dash finished at 100%.<br />Press <b>R</b> to play again.";
+        dangerText.textContent = "Perfect clear";
+        emitSparks(player.x + player.w * 0.5, player.y + player.h * 0.5, 80, "death");
+      }
+
+      function intersectsRect(a, b) {
+        return (
+          a.x < b.x + b.w &&
+          a.x + a.w > b.x &&
+          a.y < b.y + b.h &&
+          a.y + a.h > b.y
+        );
+      }
+
+      function intersectsTriangle(rect, tri) {
+        const points = [
+          { x: tri.x, y: tri.y },
+          { x: tri.x + tri.w * 0.5, y: tri.y - tri.h },
+          { x: tri.x + tri.w, y: tri.y }
+        ];
+
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+          if (p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h) {
+            return true;
+          }
+        }
+
+        const rectCorners = [
+          { x: rect.x, y: rect.y },
+          { x: rect.x + rect.w, y: rect.y },
+          { x: rect.x, y: rect.y + rect.h },
+          { x: rect.x + rect.w, y: rect.y + rect.h }
+        ];
+
+        for (let i = 0; i < rectCorners.length; i++) {
+          if (pointInTriangle(rectCorners[i], points[0], points[1], points[2])) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function pointInTriangle(p, a, b, c) {
+        const area = (v1, v2, v3) => (v1.x * (v2.y - v3.y) + v2.x * (v3.y - v1.y) + v3.x * (v1.y - v2.y)) * 0.5;
+        const A = Math.abs(area(a, b, c));
+        const A1 = Math.abs(area(p, b, c));
+        const A2 = Math.abs(area(a, p, c));
+        const A3 = Math.abs(area(a, b, p));
+        return Math.abs(A - (A1 + A2 + A3)) < 0.5;
+      }
+
+      function updateHud() {
+        const p = Math.min(100, Math.floor(state.progress * 100));
+        percentText.textContent = p + "%";
+        progressFill.style.width = p + "%";
+      }
+
+      function update(dt) {
+        pulseT += dt * 3.5;
+
+        if (state.running) {
+          world.cameraX += world.speed * dt;
+          state.progress = world.cameraX / world.levelLength;
+          if (state.progress >= 1) {
+            win();
+          }
+
+          const previousY = player.y;
+          player.vy += world.gravity * dt;
+          player.y += player.vy * dt;
+
+          const floor = world.baseY - player.h;
+          if (player.y >= floor) {
+            player.y = floor;
+            player.vy = 0;
+            player.grounded = true;
+            player.rotation = 0;
+          } else {
+            player.grounded = false;
+            player.rotation += dt * 8.4;
+          }
+
+          player.trail.push({
+            x: player.x + player.w * 0.5,
+            y: player.y + player.h * 0.5,
+            a: 0.7
+          });
+          if (player.trail.length > 16) {
+            player.trail.shift();
+          }
+
+          const hitbox = {
+            x: player.x + 5,
+            y: player.y + 5,
+            w: player.w - 10,
+            h: player.h - 10
+          };
+
+          const prevHitbox = {
+            x: hitbox.x,
+            y: previousY + 5,
+            w: hitbox.w,
+            h: hitbox.h
+          };
+
+          for (let i = 0; i < level.length; i++) {
+            const o = level[i];
+            const ox = o.x - world.cameraX;
+            if (ox < -130 || ox > canvas.clientWidth + 140) continue;
+
+            if (o.type === "block") {
+              const r = { x: ox, y: o.y, w: o.w, h: o.h };
+              if (intersectsRect(hitbox, r)) {
+                const wasAbove = prevHitbox.y + prevHitbox.h <= r.y + 1;
+                const wasBelow = prevHitbox.y >= r.y + r.h - 1;
+
+                // Blocks are platforms: land on top or bump from below, never lethal.
+                if (wasAbove && player.vy >= 0) {
+                  player.y = r.y - player.h - 5;
+                  player.vy = 0;
+                  player.grounded = true;
+                  player.rotation = 0;
+                  hitbox.y = player.y + 5;
+                } else if (wasBelow && player.vy < 0) {
+                  player.y = r.y + r.h - 5;
+                  player.vy = 0;
+                  hitbox.y = player.y + 5;
+                }
+              }
+            } else {
+              const t = { x: ox, y: o.y, w: o.w, h: o.h };
+              if (intersectsTriangle(hitbox, t)) {
+                die();
+                break;
+              }
+            }
+          }
+        }
+
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const s = sparks[i];
+          s.life -= dt * 1.2;
+          if (s.life <= 0) {
+            sparks.splice(i, 1);
+            continue;
+          }
+          s.vy += 700 * dt;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+        }
+
+        updateHud();
+      }
+
+      function drawGrid(w, h) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.strokeStyle = "#5a7cff";
+        ctx.lineWidth = 1;
+        const spacing = 42;
+        const offset = -(world.cameraX * 0.35) % spacing;
+        for (let x = offset; x <= w; x += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= h; y += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBackgroundOrbs(w, h) {
+        for (let i = 0; i < deco.length; i++) {
+          const d = deco[i];
+          const x = d.x - world.cameraX * 0.22;
+          if (x < -120 || x > w + 120) continue;
+          const y = d.y + Math.sin((pulseT + i) * 0.8) * 14;
+          const g = ctx.createRadialGradient(x, y, 2, x, y, d.r);
+          g.addColorStop(0, d.c);
+          g.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function drawGround(w, h) {
+        const y = world.baseY;
+        const g = ctx.createLinearGradient(0, y - 10, 0, h);
+        g.addColorStop(0, "rgba(56,243,255,0.35)");
+        g.addColorStop(0.1, "rgba(23,39,105,0.75)");
+        g.addColorStop(1, "rgba(6,9,30,0.95)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, y, w, h - y);
+
+        ctx.strokeStyle = "rgba(56,243,255,0.8)";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = "rgba(56,243,255,0.9)";
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      function drawObstacle(o) {
+        const x = o.x - world.cameraX;
+        if (o.type === "block") {
+          const g = ctx.createLinearGradient(x, o.y, x + o.w, o.y + o.h);
+          g.addColorStop(0, "rgba(56,243,255,0.95)");
+          g.addColorStop(1, "rgba(95,98,255,0.95)");
+          ctx.fillStyle = g;
+          ctx.shadowColor = "rgba(56,243,255,0.8)";
+          ctx.shadowBlur = 14;
+          ctx.fillRect(x, o.y, o.w, o.h);
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "rgba(255,255,255,0.45)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 1, o.y + 1, o.w - 2, o.h - 2);
+        } else {
+          const g = ctx.createLinearGradient(x, o.y - o.h, x + o.w, o.y);
+          g.addColorStop(0, "rgba(255,59,248,0.98)");
+          g.addColorStop(1, "rgba(255,237,90,0.98)");
+          ctx.fillStyle = g;
+          ctx.shadowColor = "rgba(255,59,248,0.95)";
+          ctx.shadowBlur = 16;
+          ctx.beginPath();
+          ctx.moveTo(x, o.y);
+          ctx.lineTo(x + o.w * 0.5, o.y - o.h);
+          ctx.lineTo(x + o.w, o.y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "rgba(255,255,255,0.35)";
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+        }
+      }
+
+      function drawPlayer() {
+        for (let i = 0; i < player.trail.length; i++) {
+          const t = player.trail[i];
+          const alpha = (i + 1) / player.trail.length;
+          ctx.fillStyle = `rgba(56,243,255,${alpha * 0.18})`;
+          ctx.beginPath();
+          ctx.arc(t.x - i * 2.2, t.y, 5 + i * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const cx = player.x + player.w * 0.5;
+        const cy = player.y + player.h * 0.5;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(player.rotation);
+
+        const g = ctx.createLinearGradient(-22, -22, 22, 22);
+        g.addColorStop(0, "#ffffff");
+        g.addColorStop(0.4, "#9cfbff");
+        g.addColorStop(1, "#35d7ff");
+        ctx.fillStyle = g;
+        ctx.shadowColor = "rgba(56,243,255,0.95)";
+        ctx.shadowBlur = 22;
+        ctx.fillRect(-22, -22, 44, 44);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255,255,255,0.7)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-21, -21, 42, 42);
+
+        const eyePulse = 0.8 + Math.sin(pulseT * 8) * 0.2;
+        ctx.fillStyle = `rgba(255,59,248,${eyePulse})`;
+        ctx.fillRect(-11, -11, 8, 8);
+        ctx.fillRect(3, -11, 8, 8);
+        ctx.fillStyle = "rgba(10,14,40,0.9)";
+        ctx.fillRect(-11, 4, 22, 5);
+
+        ctx.restore();
+      }
+
+      function drawSparks() {
+        for (let i = 0; i < sparks.length; i++) {
+          const s = sparks[i];
+          const a = Math.max(0, s.life / s.maxLife);
+          ctx.globalAlpha = a;
+          ctx.fillStyle = s.color;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function render() {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const sky = ctx.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, "#0d1550");
+        sky.addColorStop(0.55, "#080a2d");
+        sky.addColorStop(1, "#02030d");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+
+        drawGrid(w, h);
+        drawBackgroundOrbs(w, h);
+        drawGround(w, h);
+
+        for (let i = 0; i < level.length; i++) {
+          const o = level[i];
+          const ox = o.x - world.cameraX;
+          if (ox < -160 || ox > w + 160) continue;
+          drawObstacle(o);
+        }
+
+        drawPlayer();
+        drawSparks();
+
+        if (state.dead) {
+          ctx.fillStyle = "rgba(255, 59, 120, 0.12)";
+          ctx.fillRect(0, 0, w, h);
+        } else if (state.won) {
+          ctx.fillStyle = "rgba(103, 255, 123, 0.1)";
+          ctx.fillRect(0, 0, w, h);
+        }
+      }
+
+      function loop(now) {
+        const dt = Math.min(0.05, (now - previous) / 1000);
+        previous = now;
+        accumulator += dt;
+        while (accumulator >= fixedStep) {
+          update(fixedStep);
+          accumulator -= fixedStep;
+        }
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      function handleAction() {
+        if (state.dead) {
+          resetGame();
+          startGame();
+          jump();
+          return;
+        }
+        if (state.won) return;
+        jump();
+      }
+
+      window.addEventListener("keydown", (e) => {
+        const key = e.key.toLowerCase();
+        if (key === " " || key === "w" || e.key === "ArrowUp") {
+          e.preventDefault();
+          handleAction();
+        } else if (key === "r") {
+          resetGame();
+        }
+      });
+
+      canvas.addEventListener("pointerdown", () => handleAction());
+      window.addEventListener("resize", fitCanvas);
+
+      fitCanvas();
+      buildLevel();
+      resetGame();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
